@@ -1,7 +1,6 @@
 package crypto
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,5 +51,4 @@ func TestPublicKeyToAddress(t *testing.T) {
 	address := pubKey.Address()
 
 	assert.Equal(t, addressLen, len(address.Bytes()))
-	fmt.Println(address)
 }
