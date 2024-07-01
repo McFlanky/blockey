@@ -2,7 +2,7 @@ build:
 	@go build -o bin/blockey
 
 run: build
-	@./bin/docker
+	@./bin/blockey
 
 test:
 	@go test -v ./...
