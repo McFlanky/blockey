@@ -2,6 +2,12 @@ syntax = "proto3";
 
 option go_package = "github.com/McFlanky/blockey/proto";
 
+service Node {
+	rpc HandleTransaction(Transaction) returns (None);
+}
+
+message None { }
+
 message Block {
 	Header header = 1;
 	repeated Transaction transactions  = 2;
@@ -22,7 +28,7 @@ message TxInput {
 	// the index of the output of previous transaction
 	// we want to spend.
 	uint32 prevOutIndex = 2; 
-	bytes publicKey = 3;
+	bytes publicKey = 3; 
 	bytes signature = 4;
 }
 
