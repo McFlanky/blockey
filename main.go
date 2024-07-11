@@ -13,19 +13,27 @@ import (
 )
 
 func main() {
-	makeNode(":3000", []string{})
+	makeNode(":3000", []string{}, true)
 	time.Sleep(time.Second)
-	makeNode(":4000", []string{":3000"})
+	makeNode(":4000", []string{":3000"}, false)
 	time.Sleep(time.Second)
-	makeNode(":5000", []string{":4000"})
+	makeNode(":5000", []string{":4000"}, false)
 
-	time.Sleep(time.Second)
-	makeTransaction()
-	select {}
+	for {
+		time.Sleep(time.Second * 2)
+		makeTransaction()
+	}
 }
 
-func makeNode(listenAddr string, bootstrapNodes []string) *node.Node {
-	n := node.NewNode()
+func makeNode(listenAddr string, bootstrapNodes []string, isValidator bool) *node.Node {
+	cfg := node.ServerConfig{
+		Version:    "Blockey v0.1",
+		ListenAddr: listenAddr,
+	}
+	if isValidator {
+		cfg.PrivateKey = crypto.GeneratePrivateKey()
+	}
+	n := node.NewNode(cfg)
 	go n.Start(listenAddr, bootstrapNodes)
 	return n
 }
