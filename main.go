@@ -5,8 +5,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/McFlanky/blocker/crypto"
 	"github.com/McFlanky/blocker/node"
 	"github.com/McFlanky/blocker/proto"
+	"github.com/McFlanky/blocker/util"
 	"google.golang.org/grpc"
 )
 
@@ -14,9 +16,11 @@ func main() {
 	makeNode(":3000", []string{})
 	time.Sleep(time.Second)
 	makeNode(":4000", []string{":3000"})
-	time.Sleep(4 * time.Second)
+	time.Sleep(time.Second)
 	makeNode(":5000", []string{":4000"})
 
+	time.Sleep(time.Second)
+	makeTransaction()
 	select {}
 }
 
@@ -33,14 +37,25 @@ func makeTransaction() {
 	}
 
 	c := proto.NewNodeClient(client)
-
-	version := &proto.Version{
-		Version:    "blockey v0.1",
-		Height:     1,
-		ListenAddr: ":4000",
+	privKey := crypto.GeneratePrivateKey()
+	tx := &proto.Transaction{
+		Version: 1,
+		Inputs: []*proto.TxInput{
+			{
+				PrevTxHash:   util.RandomHash(),
+				PrevOutIndex: 0,
+				PublicKey:    privKey.Public().Bytes(),
+			},
+		},
+		Outputs: []*proto.TxOutput{
+			{
+				Amount:  99,
+				Address: privKey.Public().Address().Bytes(),
+			},
+		},
 	}
 
-	_, err = c.Handshake(context.TODO(), version)
+	_, err = c.HandleTransaction(context.TODO(), tx)
 	if err != nil {
 		log.Fatal(err)
 	}
