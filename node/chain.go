@@ -1,9 +1,11 @@
 package node
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 
+	"github.com/McFlanky/blocker/crypto"
 	"github.com/McFlanky/blocker/proto"
 	"github.com/McFlanky/blocker/types"
 )
@@ -44,10 +46,12 @@ type Chain struct {
 }
 
 func NewChain(bs BlockStorer) *Chain {
-	return &Chain{
+	chain := &Chain{
 		blockstore: bs,
 		headers:    NewHeaderList(),
 	}
+	chain.addBlock(createGenisisBlock())
+	return chain
 }
 
 func (c *Chain) Height() int {
@@ -55,10 +59,18 @@ func (c *Chain) Height() int {
 }
 
 func (c *Chain) AddBlock(b *proto.Block) error {
+	if err := c.ValidateBlock(b); err != nil {
+		return err
+	}
+	return c.blockstore.Put(b)
+}
+
+func (c *Chain) addBlock(b *proto.Block) error {
 	// Add the header to the list of headers
 	c.headers.Add(b.Header)
 	// validation
 	return c.blockstore.Put(b)
+
 }
 
 func (c *Chain) GetBlockByHash(hash []byte) (*proto.Block, error) {
@@ -73,4 +85,33 @@ func (c *Chain) GetBlockByHeight(height int) (*proto.Block, error) {
 	header := c.headers.Get(height)
 	hash := (types.HashHeader(header))
 	return c.GetBlockByHash(hash)
+}
+
+func (c *Chain) ValidateBlock(b *proto.Block) error {
+	// Validate the signature of the block.
+	if !types.VerifyBlock(b) {
+		return fmt.Errorf("invalid block signature")
+	}
+	// Validate if the prevHash is the actual hash of the current block.
+	currentBlock, err := c.GetBlockByHeight(c.Height())
+	if err != nil {
+		return err
+	}
+	hash := types.HashBlock(currentBlock)
+	if !bytes.Equal(hash, b.Header.PrevHash) {
+		return fmt.Errorf("invalid previous block hash")
+	}
+	return nil
+}
+
+func createGenisisBlock() *proto.Block {
+	privKey := crypto.GeneratePrivateKey()
+	block := &proto.Block{
+		Header: &proto.Header{
+			Version: 1,
+		},
+	}
+	types.SignBlock(privKey, block)
+
+	return block
 }
