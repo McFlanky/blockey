@@ -42,9 +42,17 @@ func (list *HeaderList) Len() int {
 	return len(list.headers)
 }
 
+type UTXO struct {
+	Hash     string
+	OutIndex int
+	Amount   int64
+	Spent    bool
+}
+
 type Chain struct {
 	txStore    TXStorer
 	blockstore BlockStorer
+	utxoStore  UTXOStorer
 	headers    *HeaderList
 }
 
@@ -52,6 +60,7 @@ func NewChain(bs BlockStorer, txStore TXStorer) *Chain {
 	chain := &Chain{
 		txStore:    txStore,
 		blockstore: bs,
+		utxoStore:  NewMemoryUTXOStore(),
 		headers:    NewHeaderList(),
 	}
 	chain.addBlock(createGenisisBlock())
@@ -66,16 +75,31 @@ func (c *Chain) AddBlock(b *proto.Block) error {
 	if err := c.ValidateBlock(b); err != nil {
 		return err
 	}
-	return c.blockstore.Put(b)
+	return c.addBlock(b)
 }
 
 func (c *Chain) addBlock(b *proto.Block) error {
 	c.headers.Add(b.Header)
 
 	for _, tx := range b.Transactions {
-		fmt.Println("NEW TX: ", hex.EncodeToString(types.HashTransaction(tx)))
 		if err := c.txStore.Put(tx); err != nil {
 			return err
+		}
+		hash := hex.EncodeToString(types.HashTransaction(tx))
+
+		// address_txhash
+		for it, output := range tx.Outputs {
+			utxo := &UTXO{
+				Hash:     hash,
+				Amount:   output.Amount,
+				OutIndex: it,
+				Spent:    false,
+			}
+			address := crypto.AddressFromBytes(output.Address)
+			key := fmt.Sprintf("%s_%s", address, hash)
+			if err := c.utxoStore.Put(key, utxo); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -110,6 +134,16 @@ func (c *Chain) ValidateBlock(b *proto.Block) error {
 	hash := types.HashBlock(currentBlock)
 	if !bytes.Equal(hash, b.Header.PrevHash) {
 		return fmt.Errorf("invalid previous block hash")
+	}
+	for _, tx := range b.Transactions {
+		if !types.VerifyTransaction(tx) {
+			return fmt.Errorf("invalid tx signature")
+		}
+
+		// for _, input := range tx.Inputs {
+		// 	input
+		// }
+
 	}
 	return nil
 }
