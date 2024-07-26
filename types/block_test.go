@@ -4,9 +4,25 @@ import (
 	"testing"
 
 	"github.com/McFlanky/blocker/crypto"
+	"github.com/McFlanky/blocker/proto"
 	"github.com/McFlanky/blocker/util"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestCalculateRoothash(t *testing.T) {
+	var (
+		privKey = crypto.GeneratePrivateKey()
+		block   = util.RandomBlock()
+		tx      = &proto.Transaction{
+			Version: 1,
+		}
+	)
+	block.Transactions = append(block.Transactions, tx)
+	SignBlock(privKey, block)
+
+	assert.True(t, VerifyRootHash(block))
+	assert.Equal(t, 32, len(block.Header.RootHash))
+}
 
 func TestSignVerifyBlock(t *testing.T) {
 	var (
