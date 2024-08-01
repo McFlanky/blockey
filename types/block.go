@@ -3,6 +3,8 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 
 	"github.com/McFlanky/blocker/crypto"
 	"github.com/McFlanky/blocker/proto"
@@ -33,30 +35,32 @@ func (h TxHash) Equals(other merkletree.Content) (bool, error) {
 func VerifyBlock(b *proto.Block) bool {
 	if len(b.Transactions) == 0 {
 		if !VerifyRootHash(b) {
+			fmt.Println("!!--- INVALID root hash")
 			return false
 		}
 	}
-	if !VerifyRootHash(b) {
-		return false
-	}
 	if len(b.PublicKey) != crypto.PubKeyLen {
+		fmt.Println("!!--- INVALID public key length")
 		return false
 	}
 	if len(b.Signature) != crypto.SignatureLen {
+		fmt.Println("!!--- INVALID signature key length")
 		return false
 	}
-	sig := crypto.SignatureFromBytes(b.Signature)
-	pubKey := crypto.PublicKeyFromBytes(b.PublicKey)
-	hash := HashBlock(b)
-	return sig.Verify(pubKey, hash)
+	var (
+		sig    = crypto.SignatureFromBytes(b.Signature)
+		pubKey = crypto.PublicKeyFromBytes(b.PublicKey)
+		hash   = HashBlock(b)
+	)
+	if !sig.Verify(pubKey, hash) {
+		fmt.Printf("root: %+v\n", hex.EncodeToString(b.Header.RootHash))
+		fmt.Println("!!--- INVALID block signature")
+		return false
+	}
+	return true
 }
 
 func SignBlock(pk *crypto.PrivateKey, b *proto.Block) *crypto.Signature {
-	hash := HashBlock(b)
-	sig := pk.Sign(hash)
-	b.PublicKey = pk.Public().Bytes()
-	b.Signature = sig.Bytes()
-
 	if len(b.Transactions) > 0 {
 		tree, err := GetMerkleTree(b)
 		if err != nil {
@@ -64,6 +68,11 @@ func SignBlock(pk *crypto.PrivateKey, b *proto.Block) *crypto.Signature {
 		}
 		b.Header.RootHash = tree.MerkleRoot()
 	}
+
+	hash := HashBlock(b)
+	sig := pk.Sign(hash)
+	b.PublicKey = pk.Public().Bytes()
+	b.Signature = sig.Bytes()
 
 	return sig
 }
@@ -90,7 +99,7 @@ func GetMerkleTree(b *proto.Block) (*merkletree.MerkleTree, error) {
 	for i := 0; i < len(b.Transactions); i++ {
 		list[i] = NewTxHash(HashTransaction(b.Transactions[i]))
 	}
-	//Create a new Merkle Tree from the list of Content
+	// Create a new Merkle Tree from the list of Content
 	t, err := merkletree.NewTree(list)
 	if err != nil {
 		return nil, err

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/McFlanky/blocker/crypto"
@@ -46,5 +45,4 @@ func TestNewTransaction(t *testing.T) {
 	input.Signature = sig.Bytes()
 
 	assert.Equal(t, true, VerifyTransaction(tx))
-	fmt.Printf("%+v\n", tx)
 }

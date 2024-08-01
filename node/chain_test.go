@@ -1,6 +1,8 @@
 package node
 
 import (
+	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/McFlanky/blocker/crypto"
@@ -27,7 +29,6 @@ func TestNewChain(t *testing.T) {
 	assert.Equal(t, 0, chain.Height())
 	_, err := chain.GetBlockByHeight(0)
 	assert.Nil(t, err)
-
 }
 
 func TestChainHeight(t *testing.T) {
@@ -129,6 +130,8 @@ func TestAddBlockWithTx(t *testing.T) {
 		Inputs:  inputs,
 		Outputs: outputs,
 	}
+
+	fmt.Printf("root: %+v\n", hex.EncodeToString(block.Header.RootHash))
 
 	sig := types.SignTransaction(privKey, tx)
 	tx.Inputs[0].Signature = sig.Bytes()
